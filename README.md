@@ -8,6 +8,10 @@ We've created a python script that you can run that will download all your proje
 
 ---
 
+## How long do I have?!
+
+Project hosting will shut down in July, but you will continue to be able to download your projects for the entirety of 2025. So you have some time yet.
+
 ## Where to get it
 
 [Right here!](https://raw.githubusercontent.com/Pomax/glitch-bulk-downloader/refs/heads/main/download.py) It's the `download.py` file.
@@ -33,6 +37,10 @@ Run the setup, and then you'll need to update your windows PATH to include the `
 ---
 
 ## How to use the script
+
+The script will download your regular projects into an `./active` folder, and will download all your archived projects into an `./archived` folder. It can do this in two "modes":
+
+### Interactive mode
 
 ### Interactive mode
 
