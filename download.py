@@ -40,7 +40,7 @@ except:
 
 args = sys.argv
 no_assets = "--no-assets" in args
-no_skip = "--no-skip" in args                                                                
+no_skip = "--no-skip" in args
 
 def get_values():
     """
@@ -193,16 +193,16 @@ Let's get this bulk download going:
 
 try:
     (user_id, user_token) = get_values()
-    
+
     print("Fetching list of active projects...")
-    data = get_project_list(user_id, user_token, False) 
+    data = get_project_list(user_id, user_token, False)
     items = data.get('items', [])
     print(f"Downloading {len(items)} projects...")
     for project in items:
         download_project(user_token, project, "active")
 
     print("Fetching list of archived projects...")
-    data = get_project_list(user_id, user_token, True) 
+    data = get_project_list(user_id, user_token, True)
     items = data.get('items', [])
     print(f"Downloading {len(items)} archived projects...")
     for project in items:
