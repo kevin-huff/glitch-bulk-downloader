@@ -40,8 +40,7 @@ except:
 
 args = sys.argv
 no_assets = "--no-assets" in args
-no_skip = "--no-skip" in args
-download_archived = "--archived" in args                                                                       
+no_skip = "--no-skip" in args                                                                
 
 def get_values():
     """
