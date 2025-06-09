@@ -32,6 +32,7 @@ except:
 args = sys.argv
 no_assets = "--no-assets" in args
 no_skip = "--no-skip" in args
+fetch_archived = "--archived" in args																	   
 
 def get_values():
     """
@@ -54,12 +55,20 @@ def get_values():
 
     return (user_id, user_token,)
 
-def get_project_list(user_id, user_token):
+def get_project_list(user_id, user_token, get_archived=False):
     """
     Ask for user credentials, unless they were already provided on the command line
+	If get_archived is True, fetches deleted/archived projects instead of active projects.
     """
 
-    url = f"https://api.glitch.com/v1/users/by/id/projects?id={user_id}&limit=1000"
+    if get_archived:
+        print("Fetching archived project list...")
+    else:
+        print("Fetching active project list...")
+
+    base = "https://api.glitch.com/v1/users/by/id"
+    endpoint = "deletedProjects" if get_archived else "projects"
+    url = f"{base}/{endpoint}?id={user_id}&limit=1000"
     req = Request(url)
     req.add_header('Authorization', user_token)
 
@@ -171,15 +180,35 @@ Let's get this bulk download going:
 
 try:
     (user_id, user_token) = get_values()
-    print("\nFetching project list...")
-
-    data = get_project_list(user_id, user_token)
-    items = data.get('items', [])
-
-    print(f"Found {len(items)} projects, starting the download...")
-
-    for project in items:
-        download_project(user_token, project)
+    
+    # Pass the fetch_archived flag to get_project_list
+    data = get_project_list(user_id, user_token, fetch_archived) 
+    
+    # The structure of the response for deletedProjects might be different.
+    # Assuming it's similar to active projects with an 'items' list.
+    # If 'items' is not present, or has a different name, this needs adjustment.
+    items = []
+    if isinstance(data, list): # The deletedProjects endpoint returns a list directly
+    	items = data
+    	print(f"Found {len(items)} archived projects.")
+    elif isinstance(data, dict) and 'items' in data: # The active projects endpoint returns a dict with 'items'
+    	items = data.get('items', [])
+    	print(f"Found {len(items)} active projects.")
+    else:
+    	print("Could not find project items in the response. The API response structure might have changed or an error occurred.")
+    	if data:
+    		print(f"API Response (first 500 chars): {str(data)[:500]}")
+    
+    
+    if not items:
+    	project_type = "archived" if fetch_archived else "active"
+    	print(f"No {project_type} projects found or an error occurred fetching them.")
+    else:
+    	project_type_plural = "archived projects" if fetch_archived else "projects"
+    	print(f"Starting the download for {len(items)} {project_type_plural}...")
+    
+    	for project in items:
+    		download_project(user_token, project)
 
 except KeyboardInterrupt:
     exit(1)
