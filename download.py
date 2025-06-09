@@ -1,3 +1,12 @@
+# Glitch project bulk-downloader
+#
+# Authors:
+#  Pomax, https://github.com/Pomax
+#  Chris K.Y. FUNG, https://github.com/chriskyfung
+#
+# License:
+#  this script is in the public domain
+
 import sys, os, shutil, json, subprocess
 from http.client import InvalidURL
 from urllib.request import Request, urlopen, urlretrieve, URLError
@@ -54,12 +63,20 @@ def get_values():
 
     return (user_id, user_token,)
 
-def get_project_list(user_id, user_token):
+def get_project_list(user_id, user_token, get_archived=False):
     """
     Ask for user credentials, unless they were already provided on the command line
+    If get_archived is True, fetches deleted/archived projects instead of active projects.
     """
 
-    url = f"https://api.glitch.com/v1/users/by/id/projects?id={user_id}&limit=1000"
+    if get_archived:
+        print("Fetching archived project list...")
+    else:
+        print("Fetching active project list...")
+
+    base = "https://api.glitch.com/v1/users/by/id"
+    endpoint = "deletedProjects" if get_archived else "projects"
+    url = f"{base}/{endpoint}?id={user_id}&limit=1000"
     req = Request(url)
     req.add_header('Authorization', user_token)
 
@@ -85,18 +102,21 @@ def wait_for_dir(dir_path, timeout=10, poll_interval=1):
         sleep(poll_interval)
     return False
 
-def download_project(user_token, project):
+def download_project(user_token, project, project_type="active"):
     """
     Download a project archive from Glitch, unpack it, and rename the dir from "app" to the project domain.
     """
     project_id = project.get("id")
     project_title = project.get("domain", project_id)
-    if os.path.exists(project_title):
+    base_path = f"./{project_type}/{project_title}"
+    if os.path.exists(base_path):
         if not no_skip:
             print(f"Skipping {project_title} (already downloaded)")
             return
         else:
-            shutil.rmtree(f"./{project_title}", ignore_errors=False, onerror=None)
+            shutil.rmtree(base_path, ignore_errors=False, onerror=None)
+    if not os.path.exists(project_type):
+        os.mkdir(f"./{project_type}")
     url = f"https://api.glitch.com/project/download/?authorization={user_token}&projectId={project_id}"
     file = f"./{project_title}.tgz"
     print(f"\nDownloading '{project_title}'...")
@@ -112,25 +132,27 @@ def download_project(user_token, project):
         if not os.path.isdir(unpacked_dir):
             print(f"ERROR: {project_title} did not extract to {unpacked_dir}!")
         else:
-            shutil.move(unpacked_dir, f"./{project_title}")
+            dest = f"./{project_type}/{project_title}"
+            shutil.move(unpacked_dir, dest)
             os.remove(file)
             if no_assets is False:
-                download_assets(project_title)
+                download_assets(project_title, project_type)
 
-def download_assets(project_title):
+def download_assets(project_title, project_type):
     """
     Download all assets associated with this project
     """
     # It is a major failing of Python that we can't tell
     # it to halt execution until shutils is done...
-    while not os.path.exists(project_title):
+    base_path = f"./{project_type}/{project_title}"
+    while not os.path.exists(base_path):
         sleep(0.1)  # Check every 100ms
-    dir = f"./{project_title}/glitch-assets"
+    dir = f"{base_path}/glitch-assets"
     os.makedirs(dir, exist_ok=True)
     print(f"Downloading all assets into {dir}...")
     assets = {}
     try:
-        with open(f"./{project_title}/.glitch-assets") as asset_file:
+        with open(f"{base_path}/.glitch-assets") as asset_file:
             for line in asset_file:
                 if line.isspace():
                     continue
@@ -171,15 +193,21 @@ Let's get this bulk download going:
 
 try:
     (user_id, user_token) = get_values()
-    print("\nFetching project list...")
 
-    data = get_project_list(user_id, user_token)
+    print("Fetching list of active projects...")
+    data = get_project_list(user_id, user_token, False)
     items = data.get('items', [])
-
-    print(f"Found {len(items)} projects, starting the download...")
-
+    print(f"Downloading {len(items)} projects...")
     for project in items:
-        download_project(user_token, project)
+        download_project(user_token, project, "active")
+
+    print("Fetching list of archived projects...")
+    data = get_project_list(user_id, user_token, True)
+    items = data.get('items', [])
+    print(f"Downloading {len(items)} archived projects...")
+    for project in items:
+        download_project(user_token, project, "archived")
+
 
 except KeyboardInterrupt:
     exit(1)
